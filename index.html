@@ -1065,25 +1065,26 @@
 
             // Advances the game to the next player's turn.
             function nextTurn() {
-                if (isGameOver) return;
-                if (movesLeft > 0 || activePlayers.length <= 1) return; 
+            if (isGameOver) return;
+            if (movesLeft > 0 || activePlayers.length <= 1) return;
 
-                // Deselect any selected piece.
-                if (selectedPiece) {
-                    selectedPiece.classList.remove('selected');
-                    selectedPiece = null;
-                }
-                
-                // Find the next active player in the rotation.
-                const currentPlayerIndex = activePlayers.indexOf(currentPlayer);
-                const nextPlayerIndex = (currentPlayerIndex + 1) % activePlayers.length;
-                currentPlayer = activePlayers[nextPlayerIndex];
+            // Deselect any selected piece.
+            if (selectedPiece) {
+                selectedPiece.classList.remove('selected');
+                selectedPiece = null;
+            }
 
-                // Reset the move counter for the new player's pieces.
+            // Find the next active player in the rotation.
+            const currentPlayerIndex = activePlayers.indexOf(currentPlayer);
+            const nextPlayerIndex = (currentPlayerIndex + 1) % activePlayers.length;
+            currentPlayer = activePlayers[nextPlayerIndex];
+
+            // Reset the move counter for the new current player's pieces.
                 if (players[currentPlayer]) {
                     players[currentPlayer].forEach(p => {
                         p.movesThisTurn = 0;
-                        if (findPiecePosition(p.element).inGraveyard === false) {
+                        // This condition correctly checks if the piece is NOT in a graveyard before updating the text.
+                        if (p.element.parentElement && !p.element.parentElement.closest('.graveyard')) {
                             p.element.querySelector('.move-counter').textContent = '0';
                         }
                     });
@@ -1111,31 +1112,31 @@
                 }
             }
 
-            // Checks for a stalemate condition where no more captures are possible.
-            function checkStalemate() {
-                if (activePlayers.length <= 1) return;
-                const activePieces = [];
-                // Get a list of all pieces not in a graveyard.
-                activePlayers.forEach(p => {
-                    players[p].forEach(pieceData => {
-                        if (!findPiecePosition(pieceData.element).inGraveyard) {
-                            activePieces.push(pieceData);
-                        }
+                // Checks for a stalemate condition where no more captures are possible.
+                function checkStalemate() {
+                    if (activePlayers.length <= 1) return;
+                    const activePieces = [];
+                    // Get a list of all pieces not in a graveyard.
+                    activePlayers.forEach(p => {
+                        players[p].forEach(pieceData => {
+                            if (!findPiecePosition(pieceData.element).inGraveyard) {
+                                activePieces.push(pieceData);
+                            }
+                        });
                     });
-                });
 
-                // Check if any piece can eat any other piece.
-                let possibleCapture = false;
-                for (let i = 0; i < activePieces.length; i++) {
-                    for (let j = 0; j < activePieces.length; j++) {
-                        if (i === j) continue;
-                        if (canEat(activePieces[i], activePieces[j])) {
-                            possibleCapture = true;
-                            break;
+                    // Check if any piece can eat any other piece.
+                    let possibleCapture = false;
+                    for (let i = 0; i < activePieces.length; i++) {
+                        for (let j = 0; j < activePieces.length; j++) {
+                            if (i === j) continue;
+                            if (canEat(activePieces[i], activePieces[j])) {
+                                possibleCapture = true;
+                                break;
+                            }
                         }
+                        if (possibleCapture) break;
                     }
-                    if (possibleCapture) break;
-                }
 
                 // If no captures are possible, the game ends in a stalemate.
                 if (!possibleCapture) {
