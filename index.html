@@ -25,7 +25,7 @@
             transform-origin: center center;
         }
 
-        #startScreen {
+        #startScreen, #gameOverScreen {
             text-align: center;
             position: absolute;
             width: 100%;
@@ -34,12 +34,24 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background-color: #333;
+            background-color: rgba(0, 0, 0, 0.85);
             z-index: 100;
         }
 
-        #startScreen h1 {
+        #startScreen h1, #gameOverScreen h1 {
             font-size: 3em;
+            margin-bottom: 20px;
+        }
+        
+        #gameOverScreen p {
+            font-size: 2em;
+            color: #ffc107;
+            margin-bottom: 30px;
+        }
+
+        #gameOverScreen span {
+            font-size: 1.2em;
+            color: #ccc;
         }
 
         #playerCount, #startButton {
@@ -171,10 +183,10 @@
             z-index: 20;
         }
         
-        #player1-graveyard { top: 20px; left: 20px; }
-        #player2-graveyard { top: 20px; right: 20px; }
-        #player3-graveyard { bottom: 20px; left: 20px; }
-        #player4-graveyard { bottom: 20px, right: 20px; }
+        #player1-graveyard { top: -100px; left: -200px; }
+        #player2-graveyard { top: -100px; right: -200px; }
+        #player3-graveyard { bottom: -100px; left: -200px; }
+        #player4-graveyard { bottom: -100px; right: -200px; }
 
 
         .graveyard .piece {
@@ -235,11 +247,16 @@
             color: black;
             box-shadow: 0 2px 4px rgba(0,0,0,0.4);
             cursor: grab;
+            box-sizing: border-box; /* To include border in width/height */
         }
         
         .piece.dragging {
             opacity: 0.5;
             cursor: grabbing;
+        }
+
+        .piece.selected {
+            border: 4px solid white;
         }
 
         .move-counter {
@@ -258,6 +275,27 @@
             align-items: center;
         }
 
+        #message-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            pointer-events: none; /* Let clicks pass through */
+        }
+
+        #message-overlay p {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 2.5em;
+            color: white;
+            text-shadow: 2px 2px 5px #000;
+        }
 
         .player1 { background-color: cyan; }
         .player2 { background-color: yellow; }
@@ -283,10 +321,15 @@
             <button id="startButton">Start Game</button>
         </div>
 
-        <div id="player1-graveyard" class="graveyard"></div>
-        <div id="player2-graveyard" class="graveyard"></div>
-        <div id="player3-graveyard" class="graveyard"></div>
-        <div id="player4-graveyard" class="graveyard"></div>
+         <div id="gameOverScreen" style="display: none;">
+            <h1>Game Over</h1>
+            <p id="winner-info"></p>
+            <span>Click anywhere to Play Again</span>
+        </div>
+
+        <div id="message-overlay">
+            <p id="message-text"></p>
+        </div>
 
         <div id="gameContainer">
             <div id="info-area">
@@ -304,6 +347,10 @@
                 </div>
             </div>
             <div id="board-container">
+                <div id="player1-graveyard" class="graveyard"></div>
+                <div id="player2-graveyard" class="graveyard"></div>
+                <div id="player3-graveyard" class="graveyard"></div>
+                <div id="player4-graveyard" class="graveyard"></div>
                 <div id="player1-base" class="base"></div>
                 <div id="player2-base" class="base"></div>
                 <div id="player3-base" class="base"></div>
@@ -332,6 +379,10 @@
 
             const startButton = document.getElementById('startButton');
             const startScreen = document.getElementById('startScreen');
+            const gameOverScreen = document.getElementById('gameOverScreen');
+            const winnerInfo = document.getElementById('winner-info');
+            const messageOverlay = document.getElementById('message-overlay');
+            const messageText = document.getElementById('message-text');
             const gameContainer = document.getElementById('gameContainer');
             const playerCountSelect = document.getElementById('playerCount');
             const gameBoard = document.getElementById('game-board');
@@ -347,13 +398,50 @@
             let turnCount = 1;
             let movesLeft = 2;
             let draggedPiece = null;
+            let selectedPiece = null;
             let pieceMovedTwice = null;
             let currentAction = 'move';
             let activePlayers = [];
+            let messageTimeout;
 
             const playerColors = { 1: 'cyan', 2: 'yellow', 3: 'magenta', 4: 'green' };
             const pieceTypes = ["⊕", "×", "✴"];
             let players = {};
+
+            function enterFullScreen() {
+                const elem = document.documentElement;
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen();
+                } else if (elem.mozRequestFullScreen) { /* Firefox */
+                    elem.mozRequestFullScreen();
+                } else if (elem.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
+                    elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) { /* IE/Edge */
+                    elem.msRequestFullscreen();
+                }
+            }
+
+            function showMessage(message, duration = 2000) {
+                clearTimeout(messageTimeout);
+                messageText.textContent = message;
+                messageOverlay.style.display = 'flex';
+                messageTimeout = setTimeout(() => {
+                    messageOverlay.style.display = 'none';
+                }, duration);
+            }
+
+            function showGameOverScreen(message) {
+                 setTimeout(() => {
+                    winnerInfo.textContent = message;
+                    gameContainer.style.display = 'none';
+                    gameOverScreen.style.display = 'flex';
+                }, 500);
+            }
+
+            gameOverScreen.addEventListener('click', () => {
+                gameOverScreen.style.display = 'none';
+                startScreen.style.display = 'flex';
+            });
 
             startButton.addEventListener('click', () => {
                 numPlayers = parseInt(playerCountSelect.value);
@@ -362,11 +450,15 @@
 
                 startScreen.style.display = 'none';
                 gameContainer.style.display = 'flex';
+                enterFullScreen();
                 initializeGame();
             });
 
             function initializeGame() {
                 activePlayers = [];
+                currentPlayer = 1;
+                turnCount = 1;
+                movesLeft = 2;
                 for (let i = 1; i <= numPlayers; i++) {
                     activePlayers.push(i);
                 }
@@ -374,8 +466,10 @@
                 // Clear board for restart scenarios
                 gameBoard.innerHTML = '';
                 for (let i = 1; i <= 4; i++) {
-                    document.getElementById(`player${i}-base`).innerHTML = '';
-                    document.getElementById(`player${i}-graveyard`).innerHTML = '';
+                    const base = document.getElementById(`player${i}-base`);
+                    const graveyard = document.getElementById(`player${i}-graveyard`);
+                    if(base) base.innerHTML = '';
+                    if(graveyard) graveyard.innerHTML = '';
                 }
 
 
@@ -481,6 +575,7 @@
                 addEventListeners();
                 updateTurnDisplay();
                 updateMovesDisplay();
+                turnCounterDisplay.textContent = `Turn #: ${turnCount}`;
             }
 
             function addEventListeners() {
@@ -499,6 +594,10 @@
                     }
 
                     draggedPiece = e.target;
+                    if (selectedPiece) {
+                        selectedPiece.classList.remove('selected');
+                        selectedPiece = null;
+                    }
                     setTimeout(() => e.target.classList.add('dragging'), 0);
                 });
 
@@ -542,13 +641,49 @@
                 currentAction = action;
                 movePieceBtn.classList.toggle('active', action === 'move');
                 rotateSquareBtn.classList.toggle('active', action === 'rotate');
+                if (action === 'rotate' && selectedPiece) {
+                    selectedPiece.classList.remove('selected');
+                    selectedPiece = null;
+                }
             }
 
             function handleGameClick(e) {
+                const target = e.target;
                 if (currentAction === 'rotate') {
-                    const mainSquare = e.target.closest('.main-square');
+                    const mainSquare = target.closest('.main-square');
                     if (mainSquare) {
                         rotateMainSquare(mainSquare);
+                    }
+                    return;
+                }
+                
+                // Click to move logic
+                if (currentAction === 'move') {
+                    const clickedPiece = target.closest('.piece');
+                    if (clickedPiece && parseInt(clickedPiece.dataset.player) === currentPlayer) {
+                        if (selectedPiece) {
+                            selectedPiece.classList.remove('selected');
+                        }
+                        if (selectedPiece === clickedPiece) {
+                            selectedPiece = null; // Deselect if clicking the same piece
+                        } else {
+                            selectedPiece = clickedPiece;
+                            selectedPiece.classList.add('selected');
+                        }
+                    } else if (selectedPiece) {
+                        const subSquareTarget = target.closest('.sub-square');
+                        const baseSquareTarget = target.closest('.base-square');
+
+                        if (subSquareTarget) {
+                            const mainId = parseInt(subSquareTarget.dataset.mainSquare);
+                            const subId = parseInt(subSquareTarget.dataset.subSquare);
+                            movePiece(selectedPiece, mainId, subId);
+                        } else if (baseSquareTarget) {
+                             const base = baseSquareTarget.closest('.base');
+                             if (base && parseInt(base.id.replace('player', '').replace('-base', '')) === currentPlayer) {
+                                movePiece(selectedPiece, -1, -1);
+                             }
+                        }
                     }
                 }
             }
@@ -562,18 +697,12 @@
                     if (playerIndex > -1) {
                         activePlayers.splice(playerIndex, 1);
                     }
-                    alert(`Player ${playerId} has been eliminated!`);
+                    showMessage(`Player ${playerId} has been eliminated!`);
 
                     if (activePlayers.length === 1) {
-                        setTimeout(() => {
-                            alert(`Player ${activePlayers[0]} is the last one standing and wins the game!`);
-                            location.reload();
-                        }, 100);
+                        showGameOverScreen(`Player ${activePlayers[0]} is the winner!`);
                     } else if (activePlayers.length < 1) {
-                        setTimeout(() => {
-                            alert(`It's a draw!`);
-                            location.reload();
-                        }, 100);
+                        showGameOverScreen("It's a draw!");
                     }
                 }
             }
@@ -582,8 +711,9 @@
                 const pieceData = getPieceObject(pieceElement);
                 if (!pieceData) return;
 
-                if (!isValidMove(pieceData, mainSquareId, subSquareId)) {
-                    alert('Invalid move!');
+                const moveValidation = isValidMove(pieceData, mainSquareId, subSquareId);
+                if (!moveValidation.valid) {
+                    showMessage(moveValidation.reason);
                     return;
                 }
                 
@@ -593,7 +723,7 @@
                     if (emptyBaseSquare) {
                         emptyBaseSquare.appendChild(pieceElement);
                     } else {
-                        alert("Your base is full!");
+                        showMessage("Your base is full!");
                         return;
                     }
                 } else {
@@ -609,13 +739,19 @@
                                 checkForElimination(targetPieceData.player);
                             }
                         } else {
-                            alert("Cannot eat that piece!");
+                            showMessage("Cannot eat that piece!");
                             return;
                         }
                     }
                     targetSquare.appendChild(pieceElement);
                 }
                 
+                // Deselect piece after successful move
+                if (selectedPiece) {
+                    selectedPiece.classList.remove('selected');
+                    selectedPiece = null;
+                }
+
                 pieceData.movesThisTurn++;
                 pieceElement.querySelector('.move-counter').textContent = pieceData.movesThisTurn;
                 movesLeft--;
@@ -674,47 +810,49 @@
 
             function isValidMove(piece, mainId, subId) {
                  const currentPos = findPiecePosition(piece.element);
-                 
+                 const targetSquare = document.querySelector(`[data-main-square='${mainId}'][data-sub-square='${subId}']`);
+
                  if (!currentPos.onBoard && !currentPos.inGraveyard) {
                      const homeMainSquareId = getHomeMainSquareId(piece.player);
-                     if (mainId !== homeMainSquareId) return false;
-
-                     const targetSquare = document.querySelector(`[data-main-square='${mainId}'][data-sub-square='${subId}']`);
-                     if(targetSquare.classList.contains('wall')) return false;
-
-                     return true;
-                 } else if (currentPos.onBoard) {
+                     if (mainId !== homeMainSquareId) return { valid: false, reason: "Can only enter on your home square." };
+                     if(targetSquare.classList.contains('wall')) return { valid: false, reason: "Cannot move onto a wall." };
+                     return { valid: true };
+                 } 
+                 
+                 if (currentPos.onBoard) {
                     if (mainId === -1) {
                         const homeMainSquareId = getHomeMainSquareId(piece.player);
-                        return currentPos.main === homeMainSquareId;
-                    } else {
-                        const targetSquare = document.querySelector(`[data-main-square='${mainId}'][data-sub-square='${subId}']`);
-                        if(targetSquare.classList.contains('wall')) return false;
+                        if (currentPos.main !== homeMainSquareId) return { valid: false, reason: "Can only return to base from your home square."};
+                        return { valid: true };
+                    } 
+                    
+                    if(targetSquare.classList.contains('wall')) return { valid: false, reason: "Cannot move onto a wall." };
 
-                        const {mainRow: curMainRow, mainCol: curMainCol, subRow: curSubRow, subCol: curSubCol} = getCoordsFromIds(currentPos.main, currentPos.sub);
-                        const {mainRow: targetMainRow, mainCol: targetMainCol, subRow: targetSubRow, subCol: targetSubCol} = getCoordsFromIds(mainId, subId);
+                    const {mainRow: curMainRow, mainCol: curMainCol, subRow: curSubRow, subCol: curSubCol} = getCoordsFromIds(currentPos.main, currentPos.sub);
+                    const {mainRow: targetMainRow, mainCol: targetMainCol, subRow: targetSubRow, subCol: targetSubCol} = getCoordsFromIds(mainId, subId);
 
-                        const curTotalRow = curMainRow * 3 + curSubRow;
-                        const curTotalCol = curMainCol * 3 + curSubCol;
-                        const targetTotalRow = targetMainRow * 3 + targetSubRow;
-                        const targetTotalCol = targetMainCol * 3 + targetSubCol;
-                        
-                        const totalRowDiff = Math.abs(targetTotalRow - curTotalRow);
-                        const totalColDiff = Math.abs(targetTotalCol - curTotalCol);
+                    const curTotalRow = curMainRow * 3 + curSubRow;
+                    const curTotalCol = curMainCol * 3 + curSubCol;
+                    const targetTotalRow = targetMainRow * 3 + targetSubRow;
+                    const targetTotalCol = targetMainCol * 3 + targetSubCol;
+                    
+                    if (curTotalRow === targetTotalRow && curTotalCol === targetTotalCol) return { valid: false, reason: "Must move to a different square." };
 
-                        let moveTypeValid = false;
-                        if(piece.type === "⊕") moveTypeValid = (totalRowDiff > 0 && totalColDiff === 0) || (totalRowDiff === 0 && totalColDiff > 0);
-                        if(piece.type === "×") moveTypeValid = totalRowDiff > 0 && totalRowDiff === totalColDiff;
-                        if(piece.type === "✴") moveTypeValid = (totalRowDiff > 0 && totalColDiff === 0) || (totalRowDiff === 0 && totalColDiff > 0) || (totalRowDiff > 0 && totalRowDiff === totalColDiff);
-                        
-                        if (!moveTypeValid) return false;
+                    const totalRowDiff = Math.abs(targetTotalRow - curTotalRow);
+                    const totalColDiff = Math.abs(targetTotalCol - curTotalCol);
 
-                        if (!isPathClear(curTotalRow, curTotalCol, targetTotalRow, targetTotalCol)) return false;
+                    let moveTypeValid = false;
+                    if(piece.type === "⊕") moveTypeValid = (totalRowDiff > 0 && totalColDiff === 0) || (totalRowDiff === 0 && totalColDiff > 0);
+                    if(piece.type === "×") moveTypeValid = totalRowDiff > 0 && totalRowDiff === totalColDiff;
+                    if(piece.type === "✴") moveTypeValid = (totalRowDiff > 0 && totalColDiff === 0) || (totalRowDiff === 0 && totalColDiff > 0) || (totalRowDiff > 0 && totalRowDiff === totalColDiff);
+                    
+                    if (!moveTypeValid) return { valid: false, reason: "This piece cannot move like that." };
+                    if (!isPathClear(curTotalRow, curTotalCol, targetTotalRow, targetTotalCol)) return { valid: false, reason: "Path is blocked by a piece or wall." };
 
-                        return true;
-                    }
+                    return { valid: true };
                  }
-                 return false;
+                 
+                 return { valid: false, reason: "Piece is not in a valid location." }; // Should not happen
             }
 
             function canEat(attacker, defender) {
@@ -781,7 +919,10 @@
             function nextTurn() {
                 if (movesLeft > 0 || activePlayers.length <= 1) return; 
 
-                const finishingPlayer = currentPlayer;
+                if (selectedPiece) {
+                    selectedPiece.classList.remove('selected');
+                    selectedPiece = null;
+                }
                 
                 const currentPlayerIndex = activePlayers.indexOf(currentPlayer);
                 const nextPlayerIndex = (currentPlayerIndex + 1) % activePlayers.length;
@@ -796,7 +937,10 @@
                     });
                 }
                 
-                turnCount++;
+                if (currentPlayerIndex === activePlayers.length - 1 || activePlayers.length === numPlayers) {
+                     turnCount++;
+                }
+                
                 movesLeft = 2;
                 pieceMovedTwice = null;
                 
@@ -812,6 +956,7 @@
             }
 
             function checkStalemate() {
+                if (activePlayers.length <= 1) return;
                 const activePieces = [];
                 activePlayers.forEach(p => {
                     players[p].forEach(pieceData => {
@@ -862,8 +1007,7 @@
                     });
 
                     if(playersWithMaxPieces.length === 1) {
-                         alert(`Stalemate! No more captures possible. Player ${playersWithMaxPieces[0]} wins with the most pieces!`);
-                         location.reload();
+                         showGameOverScreen(`Stalemate! Player ${playersWithMaxPieces[0]} wins with the most pieces!`);
                          return;
                     }
 
@@ -879,11 +1023,9 @@
                     });
 
                     if(winningPlayers.length === 1) {
-                        alert(`Stalemate! No more captures possible. Player ${winningPlayers[0]} wins with the highest value piece!`);
-                        location.reload();
+                        showGameOverScreen(`Stalemate! Player ${winningPlayers[0]} wins with the highest value piece!`);
                     } else {
-                        alert("Stalemate! No more captures possible. It's a draw!");
-                        location.reload();
+                        showGameOverScreen("Stalemate! No more captures possible. It's a draw!");
                     }
                 }
             }
@@ -918,7 +1060,7 @@
                          if (botPiecesOnBoard.length > 0) {
                             const randomPiece = botPiecesOnBoard[Math.floor(Math.random() * botPiecesOnBoard.length)];
                             const allSubSquares = Array.from(document.querySelectorAll('.sub-square'));
-                            const validMoves = allSubSquares.filter(sq => isValidMove(randomPiece, parseInt(sq.dataset.mainSquare), parseInt(sq.dataset.subSquare)));
+                            const validMoves = allSubSquares.filter(sq => isValidMove(randomPiece, parseInt(sq.dataset.mainSquare), parseInt(sq.dataset.subSquare)).valid);
                             const emptyValidMoves = validMoves.filter(sq => !sq.firstChild);
 
                             if (emptyValidMoves.length > 0) {
