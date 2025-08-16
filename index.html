@@ -403,6 +403,7 @@
             let currentAction = 'move';
             let activePlayers = [];
             let messageTimeout;
+            let isGameOver = false;
 
             const playerColors = { 1: 'cyan', 2: 'yellow', 3: 'magenta', 4: 'green' };
             const pieceTypes = ["⊕", "×", "✴"];
@@ -431,6 +432,7 @@
             }
 
             function showGameOverScreen(message) {
+                 isGameOver = true;
                  setTimeout(() => {
                     winnerInfo.textContent = message;
                     gameContainer.style.display = 'none';
@@ -455,10 +457,12 @@
             });
 
             function initializeGame() {
+                isGameOver = false;
                 activePlayers = [];
                 currentPlayer = 1;
                 turnCount = 1;
                 movesLeft = 2;
+                pieceMovedTwice = null; // <<< FIX: Reset this crucial variable
                 for (let i = 1; i <= numPlayers; i++) {
                     activePlayers.push(i);
                 }
@@ -708,6 +712,7 @@
             }
 
             function movePiece(pieceElement, mainSquareId, subSquareId) {
+                if (isGameOver) return;
                 const pieceData = getPieceObject(pieceElement);
                 if (!pieceData) return;
 
@@ -865,6 +870,7 @@
             }
             
             function rotateMainSquare(mainSquareElement) {
+                if (isGameOver) return;
                 const subSquares = Array.from(mainSquareElement.children);
                 const newOrder = [
                     subSquares[6], subSquares[3], subSquares[0],
@@ -917,6 +923,7 @@
             }
 
             function nextTurn() {
+                if (isGameOver) return;
                 if (movesLeft > 0 || activePlayers.length <= 1) return; 
 
                 if (selectedPiece) {
@@ -1032,7 +1039,7 @@
 
             function playBotTurn() {
                 const doBotAction = () => {
-                    if (movesLeft <= 0 || !activePlayers.includes(2)) return;
+                    if (movesLeft <= 0 || !activePlayers.includes(2) || isGameOver) return;
 
                     const tryToMoveFromBase = () => {
                         const botPiecesInBase = players[2].filter(p => {
