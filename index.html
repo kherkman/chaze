@@ -270,7 +270,7 @@
     <div id="scalable-content">
         <div id="startScreen">
             <h1>Strategic Conquest</h1>
-            <p>The "+" piece moves any number of squares horizontally or vertically.</p>
+            <p>The "⊕" piece moves any number of squares horizontally or vertically.</p>
             <p>The "✴" piece can move any number of squares horizontally, vertically, or diagonally.</p>
             <p>The "×" piece moves any number of squares diagonally.</p>
             <label for="playerCount">Select Number of Players:</label>
@@ -300,7 +300,7 @@
                 </div>
                 <div id="moves-counter">Moves Made: 0 / 2</div>
                 <div id="rules-display">
-                    <span>+</span> eats <span>×</span> &nbsp;&nbsp;|&nbsp;&nbsp; <span>×</span> eats <span>✴</span> &nbsp;&nbsp;|&nbsp;&nbsp; <span>✴</span> eats <span>+</span>
+                    <span>⊕</span> eats <span>×</span> &nbsp;&nbsp;|&nbsp;&nbsp; <span>×</span> eats <span>✴</span> &nbsp;&nbsp;|&nbsp;&nbsp; <span>✴</span> eats <span>⊕</span>
                 </div>
             </div>
             <div id="board-container">
@@ -352,7 +352,7 @@
             let activePlayers = [];
 
             const playerColors = { 1: 'cyan', 2: 'yellow', 3: 'magenta', 4: 'green' };
-            const pieceTypes = ["+", "×", "✴"];
+            const pieceTypes = ["⊕", "×", "✴"];
             let players = {};
 
             startButton.addEventListener('click', () => {
@@ -703,7 +703,7 @@
                         const totalColDiff = Math.abs(targetTotalCol - curTotalCol);
 
                         let moveTypeValid = false;
-                        if(piece.type === "+") moveTypeValid = (totalRowDiff > 0 && totalColDiff === 0) || (totalRowDiff === 0 && totalColDiff > 0);
+                        if(piece.type === "⊕") moveTypeValid = (totalRowDiff > 0 && totalColDiff === 0) || (totalRowDiff === 0 && totalColDiff > 0);
                         if(piece.type === "×") moveTypeValid = totalRowDiff > 0 && totalRowDiff === totalColDiff;
                         if(piece.type === "✴") moveTypeValid = (totalRowDiff > 0 && totalColDiff === 0) || (totalRowDiff === 0 && totalColDiff > 0) || (totalRowDiff > 0 && totalRowDiff === totalColDiff);
                         
@@ -720,9 +720,9 @@
             function canEat(attacker, defender) {
                 if (!attacker || !defender) return false;
                 if (attacker.player === defender.player) return false;
-                if(attacker.type === '+' && defender.type === '×') return true;
+                if(attacker.type === '⊕' && defender.type === '×') return true;
                 if(attacker.type === '×' && defender.type === '✴') return true;
-                if(attacker.type === '✴' && defender.type === '+') return true;
+                if(attacker.type === '✴' && defender.type === '⊕') return true;
                 return false;
             }
             
