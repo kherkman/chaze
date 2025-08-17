@@ -59,7 +59,7 @@
             color: #ccc; /* Light grey for helper text */
         }
 
-        #playerCount, #startButton {
+        #playerCount, #startButton, #botDifficulty {
             font-size: 1.5em;
             margin: 10px;
             padding: 10px;
@@ -356,6 +356,12 @@
                 <option value="3">3 Players</option>
                 <option value="4">4 Players</option>
             </select>
+            <label for="botDifficulty" style="display: block;">Bot Difficulty:</label>
+            <select id="botDifficulty" style="display: block;">
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+            </select>
             <button id="startButton">Start Game</button>
         </div>
 
@@ -436,6 +442,8 @@
             const messageText = document.getElementById('message-text');
             const gameContainer = document.getElementById('gameContainer');
             const playerCountSelect = document.getElementById('playerCount');
+            const botDifficultySelect = document.getElementById('botDifficulty');
+            const botDifficultyLabel = document.querySelector('label[for="botDifficulty"]');
             const gameBoard = document.getElementById('game-board');
             const turnDisplay = document.getElementById('turn-display');
             const turnCounterDisplay = document.getElementById('turn-counter');
@@ -446,6 +454,7 @@
             // --- Game State Variables ---
             let numPlayers; // Total number of players in the game (2, 3, or 4)
             let isBotGame; // Boolean flag for 1-player mode against AI
+            let botDifficulty = 'easy'; // Bot difficulty setting
             let currentPlayer = 1; // The player whose turn it is
             let turnCount = 1; // The overall turn number
             let movesLeft = 2; // Actions remaining in the current turn
@@ -459,9 +468,19 @@
 
             const playerColors = { 1: 'cyan', 2: 'yellow', 3: 'magenta', 4: 'green' };
             const pieceTypes = ["⊕", "×", "✴"];
+            const pieceValues = { "⊕": 3, "✴": 2, "×": 1 }; // Values for AI and stalemate
             let players = {}; // An object to store data for each player's pieces
 
             // --- Core Game Flow Functions ---
+            
+            // Show/hide bot difficulty based on player count
+            function toggleBotDifficulty() {
+                const isVisible = playerCountSelect.value === '1';
+                botDifficultySelect.style.display = isVisible ? 'block' : 'none';
+                botDifficultyLabel.style.display = isVisible ? 'block' : 'none';
+            }
+            playerCountSelect.addEventListener('change', toggleBotDifficulty);
+            toggleBotDifficulty(); // Initial check
 
             // Attempts to put the browser into fullscreen mode.
             function enterFullScreen() {
@@ -507,7 +526,10 @@
             startButton.addEventListener('click', () => {
                 numPlayers = parseInt(playerCountSelect.value);
                 isBotGame = numPlayers === 1;
-                if (isBotGame) numPlayers = 2; // If it's a bot game, set up for 2 players
+                if (isBotGame) {
+                    numPlayers = 2; // If it's a bot game, set up for 2 players
+                    botDifficulty = botDifficultySelect.value;
+                }
 
                 startScreen.style.display = 'none';
                 gameContainer.style.display = 'flex';
@@ -1143,8 +1165,7 @@
                     // --- Stalemate Tie-Breaker Logic ---
                     let playerPieceCount = {};
                     let playerHighestValue = {};
-                    const pieceValues = { '+': 3, '✴': 2, '×': 1 }; // Assign values to piece types
-
+                    
                     activePlayers.forEach(p => {
                         playerPieceCount[p] = 0;
                         playerHighestValue[p] = 0;
@@ -1197,65 +1218,154 @@
             }
 
             // --- Bot (AI) Logic ---
+
+            // Helper: Try to move a piece from the base onto the board.
+            function botAttemptMoveFromBase() {
+                const botPiecesInBase = players[2].filter(p => {
+                    const pos = findPiecePosition(p.element);
+                    return !pos.onBoard && !pos.inGraveyard;
+                });
+                if (botPiecesInBase.length > 0) {
+                    const pieceToMove = botPiecesInBase[0];
+                    const homeMainSquareId = getHomeMainSquareId(2);
+                    const homeMainSquare = document.querySelector(`[data-main-square-id='${homeMainSquareId}']`);
+                    const targetSubSquares = Array.from(homeMainSquare.children);
+                    const validTargets = targetSubSquares.filter(square => !square.classList.contains('wall') && (!square.firstChild || canEat(pieceToMove, getPieceObject(square.firstChild))));
+
+                    if (validTargets.length > 0) {
+                        const targetSquare = validTargets[Math.floor(Math.random() * validTargets.length)];
+                        movePiece(pieceToMove.element, parseInt(targetSquare.dataset.mainSquare), parseInt(targetSquare.dataset.subSquare));
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // Helper: Try to move a piece on the board to a random empty square.
+            function botAttemptMoveOnBoard() {
+                const botPiecesOnBoard = players[2].filter(p => findPiecePosition(p.element).onBoard);
+                if (botPiecesOnBoard.length > 0) {
+                    const shuffledPieces = botPiecesOnBoard.sort(() => 0.5 - Math.random());
+                    const allSubSquares = Array.from(document.querySelectorAll('.sub-square'));
+
+                    for (const piece of shuffledPieces) {
+                        const emptyValidMoves = allSubSquares.filter(sq => !sq.firstChild && isValidMove(piece, parseInt(sq.dataset.mainSquare), parseInt(sq.dataset.subSquare)).valid);
+                        if (emptyValidMoves.length > 0) {
+                            const targetSquare = emptyValidMoves[Math.floor(Math.random() * emptyValidMoves.length)];
+                            movePiece(piece.element, parseInt(targetSquare.dataset.mainSquare), parseInt(targetSquare.dataset.subSquare));
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            // EASY: Move from base, then move randomly on board.
+            function playEasyBotTurn() {
+                if (botAttemptMoveFromBase()) return true;
+                if (botAttemptMoveOnBoard()) return true;
+                return false;
+            }
+
+            // MEDIUM: Look for any capture, otherwise play like Easy.
+            function playMediumBotTurn() {
+                const botPiecesOnBoard = players[2].filter(p => findPiecePosition(p.element).onBoard);
+                const opponentPieces = players[1].filter(p => findPiecePosition(p.element).onBoard);
+
+                // Priority 1: Find any possible capture.
+                for (const botPiece of botPiecesOnBoard) {
+                    for (const opponentPiece of opponentPieces) {
+                        const opponentPos = findPiecePosition(opponentPiece.element);
+                        if (canEat(botPiece, opponentPiece) && isValidMove(botPiece, opponentPos.main, opponentPos.sub).valid) {
+                            movePiece(botPiece.element, opponentPos.main, opponentPos.sub);
+                            return true;
+                        }
+                    }
+                }
+
+                // Priority 2 & 3: Play like Easy.
+                if (botAttemptMoveFromBase()) return true;
+                if (botAttemptMoveOnBoard()) return true;
+                return false;
+            }
+            
+            // HARD: Look for best capture, then escape threats, then play like Easy.
+            function playHardBotTurn() {
+                const botPiecesOnBoard = players[2].filter(p => findPiecePosition(p.element).onBoard);
+                const opponentPieces = players[1].filter(p => findPiecePosition(p.element).onBoard);
+
+                // Priority 1: Find the BEST possible capture.
+                let possibleCaptures = [];
+                for (const botPiece of botPiecesOnBoard) {
+                    for (const opponentPiece of opponentPieces) {
+                        const opponentPos = findPiecePosition(opponentPiece.element);
+                        if (canEat(botPiece, opponentPiece) && isValidMove(botPiece, opponentPos.main, opponentPos.sub).valid) {
+                            possibleCaptures.push({
+                                attacker: botPiece.element,
+                                targetPos: opponentPos,
+                                value: pieceValues[opponentPiece.type] || 0
+                            });
+                        }
+                    }
+                }
+
+                if (possibleCaptures.length > 0) {
+                    possibleCaptures.sort((a, b) => b.value - a.value); // Sort by highest value
+                    const bestCapture = possibleCaptures[0];
+                    movePiece(bestCapture.attacker, bestCapture.targetPos.main, bestCapture.targetPos.sub);
+                    return true;
+                }
+
+                // Priority 2: Escape a threat.
+                for (const botPiece of botPiecesOnBoard) {
+                    const botPos = findPiecePosition(botPiece.element);
+                    let isThreatened = false;
+                    for (const opponentPiece of opponentPieces) {
+                        if (canEat(opponentPiece, botPiece) && isValidMove(opponentPiece, botPos.main, botPos.sub).valid) {
+                            isThreatened = true;
+                            break;
+                        }
+                    }
+                    if (isThreatened) {
+                        const allSubSquares = Array.from(document.querySelectorAll('.sub-square'));
+                        const validMoves = allSubSquares.filter(sq => !sq.firstChild && isValidMove(botPiece, parseInt(sq.dataset.mainSquare), parseInt(sq.dataset.subSquare)).valid);
+                        if (validMoves.length > 0) {
+                            const targetSquare = validMoves[Math.floor(Math.random() * validMoves.length)];
+                            movePiece(botPiece.element, parseInt(targetSquare.dataset.mainSquare), parseInt(targetSquare.dataset.subSquare));
+                            return true;
+                        }
+                    }
+                }
+
+                // Priority 3 & 4: Play like Easy.
+                if (botAttemptMoveFromBase()) return true;
+                if (botAttemptMoveOnBoard()) return true;
+                return false;
+            }
+
+
             // This function contains the logic for the computer player's turn.
             function playBotTurn() {
                 // The main action-taking function for the bot.
                 const doBotAction = () => {
                     if (movesLeft <= 0 || !activePlayers.includes(2) || isGameOver) return;
 
-                    // Priority 1: Try to move a piece from the base onto the board.
-                    const tryToMoveFromBase = () => {
-                        const botPiecesInBase = players[2].filter(p => {
-                            const pos = findPiecePosition(p.element);
-                            return pos.onBoard === false && pos.inGraveyard === false;
-                        });
-                        if (botPiecesInBase.length > 0) {
-                            const pieceToMove = botPiecesInBase[0];
-                            const homeMainSquareId = getHomeMainSquareId(2);
-                            const homeMainSquare = document.querySelector(`[data-main-square-id='${homeMainSquareId}']`);
-                            const targetSubSquares = Array.from(homeMainSquare.children);
-                            // Find all valid landing spots in the home square.
-                            const validTargets = targetSubSquares.filter(square => !square.classList.contains('wall') && (!square.firstChild || canEat(pieceToMove, getPieceObject(square.firstChild))));
-
-                            if (validTargets.length > 0) {
-                                // Pick a random valid spot and move there.
-                                const targetSquare = validTargets[Math.floor(Math.random() * validTargets.length)];
-                                movePiece(pieceToMove.element, parseInt(targetSquare.dataset.mainSquare), parseInt(targetSquare.dataset.subSquare));
-                                return true; // Action was successful
-                            }
-                        }
-                        return false; // No action taken
-                    };
-
-                    // Priority 2: Try to move a piece already on the board.
-                    const tryToMoveOnBoard = () => {
-                        const botPiecesOnBoard = players[2].filter(p => findPiecePosition(p.element).onBoard === true);
-                         if (botPiecesOnBoard.length > 0) {
-                            // Pick a random piece on the board.
-                            const randomPiece = botPiecesOnBoard[Math.floor(Math.random() * botPiecesOnBoard.length)];
-                            const allSubSquares = Array.from(document.querySelectorAll('.sub-square'));
-                            // Find all possible valid moves for that piece.
-                            const validMoves = allSubSquares.filter(sq => isValidMove(randomPiece, parseInt(sq.dataset.mainSquare), parseInt(sq.dataset.subSquare)).valid);
-                            // Prefer to move to an empty square.
-                            const emptyValidMoves = validMoves.filter(sq => !sq.firstChild);
-
-                            if (emptyValidMoves.length > 0) {
-                                // Pick a random empty square and move there.
-                                const targetSquare = emptyValidMoves[Math.floor(Math.random() * emptyValidMoves.length)];
-                                movePiece(randomPiece.element, parseInt(targetSquare.dataset.mainSquare), parseInt(targetSquare.dataset.subSquare)); 
-                                return true; // Action was successful
-                            }
-                        }
-                        return false; // No action taken
-                    };
-
-                    // Priority 3: If no valid moves are found, rotate a random square.
-                    if (tryToMoveFromBase()) { return; }
-                    if (tryToMoveOnBoard()) { return; }
+                    let actionTaken = false;
+                    // Route to the correct difficulty logic.
+                    if (botDifficulty === 'easy') {
+                        actionTaken = playEasyBotTurn();
+                    } else if (botDifficulty === 'medium') {
+                        actionTaken = playMediumBotTurn();
+                    } else if (botDifficulty === 'hard') {
+                        actionTaken = playHardBotTurn();
+                    }
                     
-                    const allMainSquares = Array.from(document.querySelectorAll('.main-square'));
-                    const randomMainSquare = allMainSquares[Math.floor(Math.random() * allMainSquares.length)];
-                    rotateMainSquare(randomMainSquare);
+                    // Fallback: If no other action was taken, rotate a random square.
+                    if (!actionTaken) {
+                        const allMainSquares = Array.from(document.querySelectorAll('.main-square'));
+                        const randomMainSquare = allMainSquares[Math.floor(Math.random() * allMainSquares.length)];
+                        rotateMainSquare(randomMainSquare);
+                    }
                 };
 
                 // Use timeouts to create a delay, making the bot's moves feel more natural.
