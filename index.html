@@ -86,7 +86,7 @@
         }
 
         #gameOverScreen p {
-            font-size: 2.5vw;
+            font-size: 2.2vw;
             line-height: 1.5;
             color: #ffc107; /* Amber color for the winner info */
             margin-bottom: 30px;
@@ -1320,8 +1320,10 @@
                 }
             }
             
-            function formatStalemateMessage(mainMessage) {
-                let message = mainMessage;
+            function formatStalemateMessage(tieBreakerResult) {
+                let message = "<b>Stalemate!</b> No more captures were possible on the board.<br>";
+                message += tieBreakerResult; // Add the specific reason for the result
+
                 const survivors = activePlayers.map(p => `Player ${p}`).join(', ');
                 message += `<br><br><b>Survivors:</b> ${survivors}`;
 
@@ -1332,16 +1334,11 @@
                 return message;
             }
 
-            /**
-             * Checks for a stalemate condition after each turn.
-             * A stalemate occurs if no possible captures exist between any of the remaining active players.
-             * This function handles all scenarios, including the specific 2-player stalemate case.
-             */
+            // Checks for a stalemate condition where no more captures are possible.
             function checkStalemate() {
                 if (activePlayers.length <= 1) return;
-
-                // 1. Get a list of all pieces still in play.
                 const activePieces = [];
+                // Get a list of all pieces not in a graveyard.
                 activePlayers.forEach(p => {
                     players[p].forEach(pieceData => {
                         if (!findPiecePosition(pieceData.element).inGraveyard) {
@@ -1350,14 +1347,11 @@
                     });
                 });
 
-                // 2. Check if any piece can eat any other piece.
-                // This loop checks every possible combination of pieces for a valid capture.
+                // Check if any piece can eat any other piece.
                 let possibleCapture = false;
                 for (let i = 0; i < activePieces.length; i++) {
                     for (let j = 0; j < activePieces.length; j++) {
-                        if (i === j) continue; // A piece cannot eat itself
-                        
-                        // If we find even one possible capture, it's not a stalemate.
+                        if (i === j) continue;
                         if (canEat(activePieces[i], activePieces[j])) {
                             possibleCapture = true;
                             break;
@@ -1366,7 +1360,7 @@
                     if (possibleCapture) break;
                 }
 
-                // 3. If after checking all pieces, no captures are possible, end the game.
+                // If no captures are possible, the game ends in a stalemate.
                 if (!possibleCapture) {
                     // --- Stalemate Tie-Breaker Logic ---
                     let playerPieceCount = {};
@@ -1398,7 +1392,7 @@
                     });
 
                     if(playersWithMaxPieces.length === 1) {
-                         const mainMsg = `Stalemate! Player ${playersWithMaxPieces[0]} wins with the most pieces!`;
+                         const mainMsg = `Player ${playersWithMaxPieces[0]} wins due to the 'Most Pieces' tie-breaker.`;
                          showGameOverScreen(formatStalemateMessage(mainMsg));
                          return;
                     }
@@ -1416,11 +1410,11 @@
                     });
 
                     if(winningPlayers.length === 1) {
-                        const mainMsg = `Stalemate! Player ${winningPlayers[0]} wins with the highest value piece!`;
+                        const mainMsg = `Player ${winningPlayers[0]} wins due to the 'Highest Value Piece' tie-breaker.`;
                         showGameOverScreen(formatStalemateMessage(mainMsg));
                     } else {
                         // If still tied, it's a draw.
-                        const mainMsg = "Stalemate! No more captures possible. It's a draw!";
+                        const mainMsg = "The game is a draw as all tie-breakers were met.";
                         showGameOverScreen(formatStalemateMessage(mainMsg));
                     }
                 }
