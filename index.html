@@ -45,7 +45,14 @@
             z-index: 100; /* Ensure they appear on top of the game */
         }
 
-        #startScreen h1, #gameOverScreen h1 {
+        /* For the CHAZE title */
+        #startScreen h1 {
+            font-size: 6vw; 
+            margin-bottom: 20px;
+        }
+
+        /* For the Game Over title (keeping it larger) */
+        #gameOverScreen h1 {
             font-size: 8vw;
             margin-bottom: 20px;
         }
@@ -54,6 +61,21 @@
             font-size: 1.8vw;
         }
         
+        /* --- Styles for Dropdown Alignment --- */
+        .selection-container {
+            display: flex; /* Aligns children (the two divs) in a row */
+            justify-content: center; /* Centers the items horizontally */
+            align-items: flex-start; /* Aligns items to the top */
+            gap: 20px; /* Adds space between the two dropdown sections */
+            margin-bottom: 20px; /* Adds some space before the start button */
+        }
+
+        .player-selection, .difficulty-selection {
+            display: flex; /* Ensures label and select box align well */
+            flex-direction: column; /* Stacks the label on top of the select box */
+            text-align: center;
+        }
+
         #gameOverScreen p {
             font-size: 3vw;
             color: #ffc107; /* Amber color for the winner info */
@@ -382,21 +404,27 @@
         The "<span id="p-plus"></span>" piece moves any number of squares horizontally or vertically.<br>
         The "<span id="p-star"></span>" piece can move any number of squares horizontally, vertically, or diagonally.<br>
         The "<span id="p-x"></span>" piece moves any number of squares diagonally.</p>
-        <label for="playerCount">Select Number of Players:</label>
-        <select id="playerCount">
-            <option value="1">1 Player (vs Bot)</option>
-            <option value="2">2 Players</option>
-            <option value="3">3 Players</option>
-            <option value="4">4 Players</option>
-        </select>
-        <label for="botDifficulty" style="display: block;">Bot Difficulty:</label>
-        <select id="botDifficulty" style="display: block;">
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-        </select>
-        <button id="startButton">Start Game</button>
-    </div>
+            <div class="selection-container">
+                <div class="player-selection">
+                    <label for="playerCount">Select Number of Players:</label>
+                    <select id="playerCount">
+                        <option value="1">1 Player (vs Bot)</option>
+                        <option value="2">2 Players</option>
+                        <option value="3">3 Players</option>
+                        <option value="4">4 Players</option>
+                    </select>
+                </div>
+                <div class="difficulty-selection">
+                    <label for="botDifficulty">Bot Difficulty:</label>
+                    <select id="botDifficulty">
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+            </div>
+            <button id="startButton">Start Game</button>
+        </div>
 
      <!-- The screen shown when the game ends -->
      <div id="gameOverScreen" style="display: none;">
@@ -485,7 +513,11 @@
             const messageText = document.getElementById('message-text');
             const gameContainer = document.getElementById('gameContainer');
             const playerCountSelect = document.getElementById('playerCount');
+
             const botDifficultySelect = document.getElementById('botDifficulty');
+            // We now target the container div for showing/hiding.
+            const botDifficultyContainer = document.querySelector('.difficulty-selection'); 
+
             const botDifficultyLabel = document.querySelector('label[for="botDifficulty"]');
             const gameBoard = document.getElementById('game-board');
             const turnDisplay = document.getElementById('turn-display');
@@ -538,8 +570,7 @@
             // Show/hide bot difficulty based on player count
             function toggleBotDifficulty() {
                 const isVisible = playerCountSelect.value === '1';
-                botDifficultySelect.style.display = isVisible ? 'block' : 'none';
-                botDifficultyLabel.style.display = isVisible ? 'block' : 'none';
+                botDifficultyContainer.style.display = isVisible ? 'flex' : 'none';
             }
             playerCountSelect.addEventListener('change', toggleBotDifficulty);
             toggleBotDifficulty(); // Initial check
