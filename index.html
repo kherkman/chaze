@@ -41,8 +41,11 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background-color: rgba(0, 0, 0, 0.85); /* Semi-transparent black background */
             z-index: 100; /* Ensure they appear on top of the game */
+        }
+
+        #startScreen {
+             background-color: rgba(0, 0, 0, 0.85); /* Semi-transparent black background */
         }
 
         /* For the CHAZE title */
@@ -56,6 +59,12 @@
             font-size: 8vw;
             margin-bottom: 20px;
         }
+
+        /* NEW: Add a strong shadow to all text on the game over screen for readability */
+        #gameOverScreen h1, #gameOverScreen p, #gameOverScreen span {
+            text-shadow: 3px 3px 8px #000, -3px -3px 8px #000;
+        }
+
 
         #startScreen p {
             font-size: 1.8vw;
@@ -633,7 +642,7 @@
                  stopTurnTimer(); // Stop the timer when the game ends
                  setTimeout(() => { // Small delay to allow the final move to be seen
                     winnerInfo.innerHTML = message; // Use innerHTML to render <br> tags
-                    gameContainer.style.display = 'none';
+                    // The game container is no longer hidden, allowing the final board state to be seen
                     gameOverScreen.style.display = 'flex';
                 }, 500);
             }
@@ -642,6 +651,7 @@
             gameOverScreen.addEventListener('click', () => {
                 gameOverScreen.style.display = 'none';
                 startScreen.style.display = 'flex';
+                gameContainer.style.display = 'none'; // Hide game container when returning to start
             });
 
             // Event listener for the "Start Game" button.
@@ -1322,11 +1332,16 @@
                 return message;
             }
 
-            // Checks for a stalemate condition where no more captures are possible.
+            /**
+             * Checks for a stalemate condition after each turn.
+             * A stalemate occurs if no possible captures exist between any of the remaining active players.
+             * This function handles all scenarios, including the specific 2-player stalemate case.
+             */
             function checkStalemate() {
                 if (activePlayers.length <= 1) return;
+
+                // 1. Get a list of all pieces still in play.
                 const activePieces = [];
-                // Get a list of all pieces not in a graveyard.
                 activePlayers.forEach(p => {
                     players[p].forEach(pieceData => {
                         if (!findPiecePosition(pieceData.element).inGraveyard) {
@@ -1335,11 +1350,14 @@
                     });
                 });
 
-                // Check if any piece can eat any other piece.
+                // 2. Check if any piece can eat any other piece.
+                // This loop checks every possible combination of pieces for a valid capture.
                 let possibleCapture = false;
                 for (let i = 0; i < activePieces.length; i++) {
                     for (let j = 0; j < activePieces.length; j++) {
-                        if (i === j) continue;
+                        if (i === j) continue; // A piece cannot eat itself
+                        
+                        // If we find even one possible capture, it's not a stalemate.
                         if (canEat(activePieces[i], activePieces[j])) {
                             possibleCapture = true;
                             break;
@@ -1348,7 +1366,7 @@
                     if (possibleCapture) break;
                 }
 
-                // If no captures are possible, the game ends in a stalemate.
+                // 3. If after checking all pieces, no captures are possible, end the game.
                 if (!possibleCapture) {
                     // --- Stalemate Tie-Breaker Logic ---
                     let playerPieceCount = {};
