@@ -51,7 +51,7 @@
         }
 
         #startScreen p {
-            font-size: 1.2vw;
+            font-size: 1.8vw;
         }
         
         #gameOverScreen p {
@@ -344,16 +344,44 @@
         .player3 { background-color: magenta; }
         .player4 { background-color: green; }
 
+        /* --- Mobile / Portrait View Styling --- */
+        @media (orientation: portrait) {
+            #startScreen, #gameOverScreen {
+                padding: 0 15px;
+                box-sizing: border-box;
+            }
+
+            #startScreen h1, #gameOverScreen h1 {
+                font-size: 12vw;
+                margin-bottom: 2vh;
+            }
+
+            #startScreen p {
+                font-size: 3.5vw;
+                line-height: 1.4;
+                margin: 1.5vh 0;
+            }
+            
+            #gameOverScreen p {
+                font-size: 5vw;
+                margin-bottom: 3vh;
+            }
+
+            #gameOverScreen span {
+                font-size: 3.5vw;
+            }
+        }
+
     </style>
 </head>
 <body>
     <!-- The initial screen with game title and player selection -->
     <div id="startScreen">
         <h1>Chaze</h1>
-        <p>A blend of chess, maze and rock-paper-scissors.</p>
-        <p>The "<span id="p-plus"></span>" piece moves any number of squares horizontally or vertically.</p>
-        <p>The "<span id="p-star"></span>" piece can move any number of squares horizontally, vertically, or diagonally.</p>
-        <p>The "<span id="p-x"></span>" piece moves any number of squares diagonally.</p>
+        <p>A blend of chess, maze and rock-paper-scissors.<br>
+        The "<span id="p-plus"></span>" piece moves any number of squares horizontally or vertically.<br>
+        The "<span id="p-star"></span>" piece can move any number of squares horizontally, vertically, or diagonally.<br>
+        The "<span id="p-x"></span>" piece moves any number of squares diagonally.</p>
         <label for="playerCount">Select Number of Players:</label>
         <select id="playerCount">
             <option value="1">1 Player (vs Bot)</option>
